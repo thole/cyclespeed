@@ -1,6 +1,6 @@
 var fs = require('fs');
 var parse = require('xml-parser');
-var xml = fs.readFileSync('cycling.gpx', 'utf8');
+var xml = fs.readFileSync('./temp/gpx/full/cycling.gpx', 'utf8');
 var d3 = require('d3')
 var moment = require('moment');
 

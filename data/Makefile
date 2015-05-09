@@ -1,14 +1,17 @@
 #https://mapzen.com/metro-extracts/
-default: speed.csv
+default: extract speed.csv
 
 speed.csv: 
 	echo "x,y,s" > speed.csv
 	node parser.js >> speed.csv
 
 clean:
-	rm -f hamburg.json
 	rm -f speed.csv
+	rm -f -r ./temp
 
 delete: 
-	rm -f cycling.gpx
+	rm -f moves_export.zip
 
+extract: moves_export.zip
+	unzip moves_export.zip -d ./temp
+	unzip ./temp/gpx.zip -d ./temp
