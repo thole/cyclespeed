@@ -1,232 +1,134 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<html>
-  <title>Hamburg mit dem Fahrrad</title>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=utf-8"/>
-    <style>
-      body {
-        font-family: "Helvetica Neue", "Helvetica";
-        color: #aaa;
-      }
+<style>
+  body {
+    font-family: "Helvetica Neue", "Helvetica";
+    color: #aaa;
+    background-color: #161616
+  }
 
-      .summary {
-        margin-top: 10px;
-        margin-bottom: 10px;
-        width: 480px;
-        font-size: 13px;
-      }
+  .summary {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 480px;
+    font-size: 13px;
+  }
 
-      .headline {
-        padding-top: 40px;
-        padding-left: 40px;
-        padding-right: 40px;
-      }
+  .headline {
+    padding-top: 40px;
+    padding-left: 40px;
+    padding-right: 40px;
+  }
 
-     .headline h1 {
-        font-size: 32px;
-        font-weight: normal;
-        line-height: 32px;
-        margin: 0;
-        color: #eee;
-      }
+  .headline h1 {
+    font-size: 32px;
+    font-weight: normal;
+    line-height: 32px;
+    margin: 0;
+    color: #eee;
+  }
 
-      .dateline{
-        margin: 0 0 15px;
-        font: 11px sans-serif;
-        color: #777;
-      }
+  .dateline{
+    margin: 0 0 15px;
+    font: 11px sans-serif;
+    color: #777;
+  }
 
-      .tooltip {
-        position: absolute;
-        width: 75px;
-        height: 20px;
-        pointer-events: none;
-        background-color: white;
-        padding: 3px;
-        border-radius: 5px;
-        color: #777;
-      }
+  .hexagon {
+    fill-opacity:0.9;
+    stroke:white;
+    stroke-width:0.02;
+  }
 
-      body {
-        background-color: #161616
-      }
-    </style>
-    <script type="text/javascript" src="http://thole.github.io/lib/d3/d3.v5.js"></script>
-    <script type="text/javascript" src="http://thole.github.io/lib/topojson/topojson.v1.js"></script>
-    <script type="text/javascript" src="http://thole.github.io/lib/colorbrewer/colorbrewer.js"></script>
 
-    
-  </head>
-  <body>
-    <div class="headline">
-      <div class="dateline">März 31, 2015</div>
-      <h1>Mit dem Fahrrad durch Hamburg</h1>
-      <div class="summary">
-        Hier sind ist meine Durchschnittsgeschwindikeiten mit der Fahrrad dargestellt. Eine kleine Legende kommt noch...
-      </div>
-    </div>
-    <div id="container"></div>
-    <script type="text/javascript">
+</style>
+<body>
+<script type="text/javascript" src="http://thole.github.io/lib/d3/d3.v5.js"></script>
+<script type="text/javascript" src="http://thole.github.io/lib/topojson/topojson.v1.js"></script>
+<script type="text/javascript" src="http://thole.github.io/lib/colorbrewer/colorbrewer.js"></script>
+<script type="text/javascript" src="http://thole.github.io/lib/d3-plugins/hexbin/hexbin.js"></script>
 
-  function zoomHandler() {
+<script>
+
+function zoomHandler() {
     viz.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
-  }
+}
 
-  function roundPoint(point){
-    point[0] = 2 * Math.round(point[0]/2);
-    point[1] = 2 * Math.round(point[1]/2);
+var width = 1200,
+    height = 900,
+    r = 0.35;
+
+var points = new Array();
     
-    return point;
-  }
+var projection = d3.geo.albers()
+    .center([10.0, 53.55])
+    .rotate([0, 0])
+    .parallels([50, 60])
+    .scale(120000)
+    .translate([width / 2, height / 2]);
 
-  function pointInPolygon(point, vs) {
-        // ray-casting algorithm based on
-        // http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html
-        var xi, xj, i, intersect,
-            x = point[0],
-            y = point[1],
-            inside = false;
-        for (var i = 0, j = vs.length - 1; i < vs.length; j = i++) {
-          xi = vs[i][0],
-          yi = vs[i][1],
-          xj = vs[j][0],
-          yj = vs[j][1],
-          intersect = ((yi > y) != (yj > y))
-              && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
-          if (intersect) inside = !inside;
-        }
-        return inside;
-  }
+var path = d3.geo.path()
+      .projection(projection);  
 
-  // add the tooltip area to the webpage
-  var tooltip = d3.select("body").append("div")
-    .attr("class", "tooltip")
-    .style("opacity", 0);
+var color = d3.scale.linear()
+    .range(colorbrewer.RdBu[11])
+    .domain([20,19,18,17,16,15,14,13,12,11,10,9.8,7,6,5,4,3,2,1,0])
 
-  var z = d3.scale.linear()
-    .domain([0,1,2,3,4,5,6,7,9,10,11,12,13,14,15,16,17,18,19,20])
-    .range(colorbrewer.RdBu[11]);
 
-	var geoDB = new Object();
-   
-	var width = 1224,
-	    height = 600;
-	
-	var projection = d3.geo.albers()
-		.center([10.0, 53.55])
-		.rotate([0, 0])
-		.parallels([50, 60])
-		.scale(120000)
-		.translate([width / 2, height / 2]);
-		
-	var path = d3.geo.path()
-	    .projection(projection);	
+var hexbin = d3.hexbin()
+    .size([width, height])
+    .radius(r);
 
-	var svg = d3.select("#container").append("svg")
-	    .attr("width", width)
-	    .attr("height", height)
-      .style("display","block")
-      .style("margin","auto");
+var svg = d3.select("body").append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
-  var viz = svg.append("g");
+var viz = svg.append("g");
 
-  var zoomListener = d3.behavior.zoom()
-      .scaleExtent([1, 2000])
+
+var zoomListener = d3.behavior.zoom()
+      .scaleExtent([1, 200])
       .on("zoom", zoomHandler);
 
-  zoomListener(svg);
+zoomListener(svg);
 
 d3.json("./data/hamburg.json", function(error, deu) {
  
   viz.selectAll(".subunit")
       .data(topojson.feature(deu, deu.objects.roads).features)
-    .enter().append("path")
+    .enter().insert("path", ":first-child")
       .attr("class", function(d) { return "subunit " + d.id; })
       .attr("d", path)
       .style("fill","none")
       .style("stroke","#999")
       .style("stroke-width","0.05px")
+});
+
+d3.csv('./data/speed.csv',function(error,data){
+  
+  data.forEach(function(d){
+    d.s = parseFloat(d.s)
+    if(d.s > 25 ){ d.s = 25; } // errors ???
+
+  })
+
+  data.forEach(function(d){
+    var mesasurePoint = projection([d.x,d.y]);
+    points.push([mesasurePoint[0],mesasurePoint[1],d.s])
+  })
 
 
-    d3.csv('./data/speed.csv',function(error,data){
-    var summer = new Array();
-    for(var i = 0; i < width; i++){
-      var row = new Array();
-      for(var j = 0; j < height; j++){
-        row.push({'s':0,'c':0})
-      }
-      summer.push(row);
-    }
-
-    data.forEach(function(d){
-      var a = projection([d.x,d.y]);
-      a = roundPoint(a);
-      
-      if(a[0] < 0 ){return;}
-      if(a[1] < 0 ){return;}
-      if(summer[a[0]][a[1]] === undefined){return;}
-       console.log(summer[a[0]][a[1]]);
-     
-
-      summer[a[0]][a[1]].s = summer[a[0]][a[1]].s + parseFloat(d.s);
-      summer[a[0]][a[1]].c = summer[a[0]][a[1]].c + 1;
-    });
-
-
-    var result = new Array();
-    for(var i = 0; i < width; i++){
-      for(var j = 0; j < height; j++){
-        if(summer[i][j].c == 0){continue;}
-
-        var avgSpeed = summer[i][j].s / summer[i][j].c
-        if(avgSpeed == null || avgSpeed == undefined){avgSpeed = 0}
-        if(isNaN(avgSpeed)){avgSpeed = 0} 
-        if(!isFinite(avgSpeed)){avgSpeed = 0}
-        result.push({'x':i,'y':j,'s':avgSpeed, 'c':summer[i][j].c})
-      }
-    }
-    
-      viz.selectAll("circle")
-        .data(result)
-        .enter().append("rect")
-          .attr('x',function(d){return d.x;})
-          .attr('y',function(d){return d.y;})
-          .attr('height',0)
-          .attr('width',0)
-          .attr('rx',0.20)
-          .attr('ry',0.20)
-          .style('fill-opacity',0.0)
-          .style('fill',function(d){return z(d.s)})
-          .attr('class',function(d){return d.s})
-          .attr('title',function(d){return d.s})
-          .on("mouseover", function(d) {
-            tooltip.transition()
-                 .duration(200)
-                 .style("opacity", .9);
-                 tooltip.html(Math.round((d.s * 3.6) * 10) / 10 + ' km/h')
-                 .style("left", (d3.event.pageX + 5) + "px")
-                 .style("top", (d3.event.pageY - 28) + "px");
-          })
-          .on("mouseout", function(d) {
-            tooltip.transition()
-                 .duration(500)
-                 .style("opacity", 0);
-          })
-          .transition()
-                 .duration(function(d){return d.s * 3000})
-                 .attr('x',function(d){return d.x - 0.9;})
-                 .attr('y',function(d){return d.y - 0.9;})
-                 .attr('height',1.8)
-                 .attr('width',1.8)
-                 .style('fill-opacity',0.75)
-          ;
-   }); 
+  var hexagon = viz.append("g")
+    .attr("class", "hexagons")
+  .selectAll("path")
+    .data(hexbin(points))
+  .enter().append("path")
+    .attr("class","hexagon")
+    .attr("d", hexbin.hexagon(r))
+    .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; })
+    .style("fill", function(d){return color(d[0][2]);});
 
 });
 
 
-
-  </script>
- </body>
-</html>
+</script>
