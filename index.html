@@ -117,7 +117,6 @@ d3.csv('./data/speed.csv',function(error,data){
     points.push([mesasurePoint[0],mesasurePoint[1],d.s])
   })
 
-
   var hexagon = viz.append("g")
     .attr("class", "hexagons")
   .selectAll("path")
@@ -129,6 +128,5 @@ d3.csv('./data/speed.csv',function(error,data){
     .style("fill", function(d){return color(d[0][2]);});
 
 });
-
 
 </script>
